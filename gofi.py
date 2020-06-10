@@ -111,7 +111,10 @@ class MainWindow(Gtk.Window):
         self.listview = Gtk.ListBox()
         self.listview.set_name("listview")
         self.listview.set_selection_mode(Gtk.SelectionMode.BROWSE)
-        # self.listview.set_can_focus(False)
+
+        self.scroll = Gtk.ScrolledWindow()
+        self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.ALWAYS)
+        self.scroll.add(self.listview)
 
         # Layout
         self.box_layout = Gtk.Box(spacing=0, orientation=Gtk.Orientation.VERTICAL)
@@ -120,7 +123,8 @@ class MainWindow(Gtk.Window):
         self.box_inputbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.box_layout.pack_start(self.box_inputbar, expand=False, fill=False, padding=0)
-        self.box_layout.pack_start(self.listview, expand=True, fill=True, padding=0)
+        # self.box_layout.pack_start(self.listview, expand=True, fill=True, padding=0)
+        self.box_layout.pack_start(self.scroll, expand=True, fill=True, padding=0)
 
         self.box_inputbar.pack_start(self.prompt, expand=False, fill=False, padding=16)
         self.box_inputbar.pack_start(self.textbox, expand=True, fill=True, padding=16)
@@ -195,6 +199,22 @@ class Gofi():
             color: #000000;
         }
 
+        overshoot.top,
+        overshoot.right,
+        overshoot.bottom,
+        overshoot.left {
+            background: none;
+            border: none;
+        }
+
+        undershoot.top,
+        undershoot.right,
+        undershoot.bottom,
+        undershoot.left {
+            background: none;
+            border: none;
+        }
+
         .label {
             margin: 0px 0px 0px 0px;
             padding: 0px 0px 0px 0px;
@@ -233,13 +253,13 @@ class Gofi():
         self._reset()
 
     def _reset(self):
-        i = 0
+        # i = 0
         self.application_list = Gio.ListStore().new(Application)
         for app in self.application_list_base:
             if app.visibility > 1:
-                if i < self.DEFAULT_NUM_ROWS:
-                    self.application_list.append(app)
-                i += 1
+                # if i < self.DEFAULT_NUM_ROWS:
+                self.application_list.append(app)
+                # i += 1
 
         self.win.listview.bind_model(self.application_list, self._add_row)
         self.win.listview.select_row(self.win.listview.get_children()[0])
@@ -292,6 +312,13 @@ class Gofi():
                 self.win.textbox.set_text("")
         elif key_name in ["Return", "KP_Enter"]:
             self.execute()
+        elif key_name == "Down":
+            index = self.win.listview.get_selected_row().get_index()
+            self.win.listview.select_row(self.win.listview.get_row_at_index(index + 1))
+        elif key_name == "Up":
+            index = self.win.listview.get_selected_row().get_index()
+            if index > 0:
+                self.win.listview.select_row(self.win.listview.get_row_at_index(index - 1))
 
     def execute(self, **kwargs):
         index = self.win.listview.get_selected_row().get_index()
