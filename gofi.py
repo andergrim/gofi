@@ -41,7 +41,7 @@ class History():
         else:
             num = self.entries[app_id][0]
 
-        self.entries[app_id] = (num + 1, time())
+        self.entries[app_id] = (num + 1, round(time()))
         self._save()
 
 
@@ -82,8 +82,15 @@ class Application(GObject.GObject):
         searchable_string = " ".join(searchable)
         return searchable_string
 
+    def match(self, token):
+        token = token.lower()
+        score = (self.search_string.startswith(token) * len(token)) + \
+                (self.search_string.count(token))
+        logging.debug(f"{self.name}: {score}")
+        return score
+
     def __str__(self):
-        return str(f"{self.name} ({self.search_string})")
+        return str(f"{self.name} ({self.app_id})")
 
 
 class MainWindow(Gtk.Window):
@@ -148,16 +155,6 @@ class ListEntry(Gtk.ListBoxRow):
 
 
 class Gofi():
-    """
-    Show on top when called
-        Reserve key-combination
-    Run in background?
-        App indicator?
-
-    Save all executions in a data object that's pickled
-      Load this object and use it to sort by num execs so that
-      favorite apps get to the top
-    """
     GOFI_DATA_DIR = os.path.dirname(os.path.realpath(__file__))
     DEFAULT_NUM_ROWS = 20
     DEFAULT_STYLE = b"""
@@ -225,7 +222,11 @@ class Gofi():
         self.application_list = Gio.ListStore().new(Application)
 
         for app in self.apps.values():
-            self.application_list_base.append(Application(app))
+            popularity, last_use = self.history.entries.get(app.get_id(), (0, 0))
+            self.application_list_base.append(Application(app, popularity, last_use))
+
+        # TODO: Sort entries by score based on timestamp, popularity, visibility
+        self.application_list_base.sort(lambda x, y: y.last_use - x.last_use)
 
         logging.debug(f"Fetched {len(self.application_list_base)} entries")
 
@@ -235,9 +236,10 @@ class Gofi():
         i = 0
         self.application_list = Gio.ListStore().new(Application)
         for app in self.application_list_base:
-            if i < self.DEFAULT_NUM_ROWS:
-                self.application_list.append(app)
-            i += 1
+            if app.visibility > 1:
+                if i < self.DEFAULT_NUM_ROWS:
+                    self.application_list.append(app)
+                i += 1
 
         self.win.listview.bind_model(self.application_list, self._add_row)
         self.win.listview.select_row(self.win.listview.get_children()[0])
@@ -246,11 +248,18 @@ class Gofi():
     def _search(self, search_string):
         logging.debug(search_string)
         if not search_string:
-            pass
             # self.application_list = self._reset()[0:self.DEFAULT_NUM_ROWS]
+            pass
+        else:
+            self.application_list.sort(self._search_compare, search_string)
+            self.win.listview.select_row(self.win.listview.get_children()[0])
+            self.win.listview.show_all()
+
+    def _search_compare(self, app_a, app_b, token):
+        return app_b.match(token) - app_a.match(token)
 
     def _add_row(self, data):
-        logging.debug(f"ADD_ROW: {data.display_name}")
+        logging.debug(f"Populating list: {data.app_id} ({data.popularity}, {data.last_use})")
         return ListEntry(data.display_name)
 
     def _style(self, style=DEFAULT_STYLE):
@@ -265,7 +274,7 @@ class Gofi():
 
     def on_change_input(self, widget):
         if widget.get_text() != "":
-            logging.debug(widget.get_text())
+            self._search(widget.get_text())
         else:
             self._reset()
 
