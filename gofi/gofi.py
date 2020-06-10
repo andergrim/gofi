@@ -2,7 +2,8 @@
 import gi
 import os
 import optparse
-from gofi import gui, objects
+import gui
+import objects
 import logging
 
 gi.require_version("Gtk", "3.0")
