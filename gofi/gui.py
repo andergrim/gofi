@@ -2,7 +2,7 @@ import gi
 import logging
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # NOQA
+from gi.repository import Gtk, Gio  # NOQA
 
 
 class MainWindow(Gtk.Window):
@@ -35,7 +35,6 @@ class MainWindow(Gtk.Window):
         self.box_inputbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.box_layout.pack_start(self.box_inputbar, expand=False, fill=False, padding=0)
-        # self.box_layout.pack_start(self.listview, expand=True, fill=True, padding=0)
         self.box_layout.pack_start(self.scroll, expand=True, fill=True, padding=0)
 
         self.box_inputbar.pack_start(self.prompt, expand=False, fill=False, padding=16)
@@ -50,21 +49,23 @@ class MainWindow(Gtk.Window):
 class ListEntry(Gtk.ListBoxRow):
     def __init__(self, label, icon=None):
         super().__init__()
+        self.set_selectable(True)
+        self.set_can_focus(False)
 
         self.box = Gtk.Box(spacing=6, orientation=Gtk.Orientation.HORIZONTAL)
         self.box.set_halign(Gtk.Align.START)
 
+        if icon:
+            self.icon = Gtk.Image(gicon=icon)
+            self.box.pack_start(self.icon, True, True, 0)
+
         self.label = Gtk.Label(label=label)
         self.label.set_justify(Gtk.Justification.LEFT)
-
         self.box.pack_start(self.label, True, True, 0)
 
         row_css = self.get_style_context()
         row_css.add_class("row")
-
         label_css = self.label.get_style_context()
         label_css.add_class("label")
 
-        self.set_selectable(True)
-        self.set_can_focus(False)
         self.add(self.box)

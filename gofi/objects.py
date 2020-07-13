@@ -2,10 +2,11 @@ import gi
 import os
 import pickle
 import logging
+# from utils import lratio
 from time import time
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GObject  # NOQA
+from gi.repository import GObject, Gio  # NOQA
 
 
 class History():
@@ -44,14 +45,14 @@ class History():
 
 
 class Application(GObject.GObject):
-    app_id = GObject.Property(type=str)
-    name = GObject.Property(type=str)
-    display_name = GObject.Property(type=str)
-    icon = GObject.Property(type=str)
-    search_string = GObject.Property(type=str)
-    popularity = GObject.Property(type=int)  # Number or uses
-    last_use = GObject.Property(type=int)    # Timestamp
-    visibility = GObject.Property(type=int)  # 0-2, with 2 being normal
+    app_id = GObject.Property(type=GObject.TYPE_STRING)
+    name = GObject.Property(type=GObject.TYPE_STRING)
+    display_name = GObject.Property(type=GObject.TYPE_STRING)
+    icon = GObject.Property(type=GObject.TYPE_OBJECT)
+    search_string = GObject.Property(type=GObject.TYPE_PYOBJECT)
+    popularity = GObject.Property(type=GObject.TYPE_INT)  # Number or uses
+    last_use = GObject.Property(type=GObject.TYPE_INT)    # Timestamp
+    visibility = GObject.Property(type=GObject.TYPE_INT)  # 0-2, with 2 being normal
 
     def __init__(self, app, popularity=0, last_use=0):
         GObject.GObject.__init__(self)
@@ -64,7 +65,7 @@ class Application(GObject.GObject):
         self.last_use = last_use
         self.visibility = app.get_show_in() + (not app.get_nodisplay())
 
-    def _extract_search_strings(self, app):
+    def _extract_search_strings_old(self, app):
         # TODO: Perform some filtering, discarding non alphanumerics
         searchable = set()
         searchable.add(app.get_display_name().lower())
@@ -80,11 +81,24 @@ class Application(GObject.GObject):
         searchable_string = " ".join(searchable)
         return searchable_string
 
+    def _extract_search_strings(self, app):
+        search_strings = [s.lower() for s in app.get_display_name().split(" ")]
+        logging.debug(search_strings)
+        return search_strings
+
     def match(self, token):
+        score = 0
         token = token.lower()
-        score = (self.search_string.startswith(token) * len(token)) + \
-                (self.search_string.count(token))
-        logging.debug(f"{self.name}: {score}")
+
+        search_string = " ".join(self.search_string)
+        score = (search_string.startswith(token) * len(token)) + \
+                (search_string.count(token))
+
+        # score = (search_string.startswith(token) * len(token)) + \
+        #         (search_string.count(token)) / len(self.search_string)
+
+        # for search_part in self.search_string:
+        #     score += lratio(search_part, token) * 5
         return score
 
     def __str__(self):
